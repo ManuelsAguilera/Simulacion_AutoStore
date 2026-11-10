@@ -8,3 +8,4 @@ venv/
 .venv-test/
 _noop/
 demo_local.py
+.opencode/opencode-loop/

@@ -1,0 +1,28 @@
+.rp__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  text-align: center;
+}
+
+.rp__empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.3;
+}
+
+.rp__empty-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: var(--text-muted, #888);
+}
+
+.rp__empty-desc {
+  font-size: 14px;
+  margin: 0;
+  color: var(--text-muted, #888);
+  max-width: 360px;
+}

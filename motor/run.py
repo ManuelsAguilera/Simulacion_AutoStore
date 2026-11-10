@@ -12,6 +12,7 @@ import csv
 import random
 import sys
 import time
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -62,21 +63,10 @@ def generar_ola_aleatoria(gx: int, gy: int, seed: int) -> list[Pedido]:
 
 
 def _asegurar_cajas_para_skus(sim: AutoStoreSimulator) -> None:
-    """Garantiza que haya suficientes cajas para satisfacer la demanda de cada SKU.
-
-    Los datos de ola.csv (SKU-A/B/C) no coinciden con los SKUs sintéticos del
-    relleno aleatorio (SKU001-010), así que inyectamos cajas para los SKUs
-    demandados. Se crea **una caja por pedido** que demande el SKU (descontando
-    las que ya existan), de modo que la demanda se pueda satisfacer al 100%.
-
-    Determinismo: se itera en orden ordenado (no sobre un `set`). La
-    aleatorización de hash de Python haría que el orden de iteración de un set
-    variara entre procesos y rompería la reproducibilidad con semilla fija.
-    """
+    """Sustituye cajas sobrantes por SKUs demandados sin cambiar la ocupación."""
     if not sim.pedidos_cola:
         return
 
-    # Demanda: cuántos pedidos requieren cada SKU
     demanda_por_sku: dict[str, int] = {}
     for p in sim.pedidos_cola:
         demanda_por_sku[p.id_sku] = demanda_por_sku.get(p.id_sku, 0) + 1
@@ -86,38 +76,27 @@ def _asegurar_cajas_para_skus(sim: AutoStoreSimulator) -> None:
     for c in cajas_existentes:
         existentes_por_sku[c.id_sku] = existentes_por_sku.get(c.id_sku, 0) + 1
 
-    gx = sim._grilla.config.grilla.x
-    gy = sim._grilla.config.grilla.y
-    gz = sim._grilla.config.grilla.z
-    next_id = len(cajas_existentes) + 1
-
-    # Orden ordenado por SKU → colocación reproducible entre corridas
+    # Consumir primero SKUs no pedidos; después, excedentes de SKUs pedidos.
+    disponibles = sorted(
+        cajas_existentes,
+        key=lambda c: (c.id_sku in demanda_por_sku, c.x, c.y, c.z, c.id_caja),
+    )
     for sku in sorted(demanda_por_sku):
         faltan = demanda_por_sku[sku] - existentes_por_sku.get(sku, 0)
-        # Coordenadas interiores reales según los márgenes de la grilla (el tránsito
-        # y las estaciones no admiten cajas — robots 1×2).
-        x0, y0, x1, y1 = sim._grilla.interior_bounds
-        ancho = x1 - x0 + 1
-        alto = y1 - y0 + 1
-        for _ in range(max(0, faltan)):
-            colocado = False
-            for cell_idx in range(ancho * alto):
-                x = cell_idx % ancho + x0
-                y = (cell_idx // ancho) % alto + y0
-                for z in range(gz):
-                    if not sim._grilla.ocupada(x, y, z):
-                        caja = Caja(
-                            id_caja=f"C{next_id:05d}", id_sku=sku,
-                            cantidad=1, x=x, y=y, z=z,
-                        )
-                        sim._grilla.agregar(caja)
-                        next_id += 1
-                        colocado = True
-                        break
-                if colocado:
-                    break
-            if not colocado:
+        for caja in disponibles[:]:
+            if faltan <= 0:
                 break
+            origen = caja.id_sku
+            if existentes_por_sku[origen] <= demanda_por_sku.get(origen, 0):
+                continue
+            sim._grilla.agregar(replace(caja, id_sku=sku, cantidad=1))
+            disponibles.remove(caja)
+            existentes_por_sku[origen] -= 1
+            existentes_por_sku[sku] = existentes_por_sku.get(sku, 0) + 1
+            faltan -= 1
+
+        if faltan > 0:
+            print(f"  Aviso: no hay cajas para reemplazar SKU {sku}; faltan {faltan}")
 
 def _timestamp() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -178,7 +157,7 @@ def ejecutar_sesion(
         )
     else:
         meta = create_execution_metadata(
-            session_name, seed, "diurno", politica.value,
+            session_name, seed, "diurno", politica,
             config_path, ola_path,
         )
 

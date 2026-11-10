@@ -1,11 +1,38 @@
 # Simulacion AutoStore — Forus S.A. (Grupo 12)
 
 Simulador funcional del sistema de almacenamiento automatizado AutoStore.
-Repositorio: `https://github.com/samirabsaa/Simulacion_AutoStore.git`
+Repositorio de trabajo: `https://github.com/ManuelsAguilera/Simulacion_AutoStore.git`
+(fork del proyecto de `samirabsaa/Simulacion_AutoStore`).
 
 ---
 
 ## Requisitos previos
+
+### Inicio con Docker (Windows)
+
+Instala y abre Docker Desktop con el motor Linux. Después haz doble clic en
+`iniciar-simulador.cmd`. El archivo construye las imágenes, inicia la API y la
+interfaz en segundo plano, y abre `http://localhost:8100`. La primera vez puede
+tardar varios minutos mientras descarga e instala las dependencias. No hace falta
+activar el entorno virtual ni abrir dos terminales.
+
+Para detener ambos servicios, haz doble clic en `detener-simulador.cmd`. También
+puedes usar una sola terminal desde la raíz del repositorio:
+
+```powershell
+docker compose up -d --build
+docker compose ps
+docker compose logs -f
+docker compose down
+```
+
+Los cambios en el código Python y Angular se reflejan durante el desarrollo.
+Los resultados quedan en `output/` del equipo. Si cambias `requirements.txt` o
+`m1/package-lock.json`, ejecuta de nuevo `docker compose up -d --build`.
+La interfaz usa `localhost:8100` y la API `localhost:8000`; esta configuración
+está pensada para acceder desde el mismo equipo.
+
+### Inicio sin Docker
 
 | Herramienta | Version minima | Verificar con |
 |---|---|---|
@@ -23,7 +50,7 @@ Repositorio: `https://github.com/samirabsaa/Simulacion_AutoStore.git`
 ## 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/samirabsaa/Simulacion_AutoStore.git
+git clone https://github.com/ManuelsAguilera/Simulacion_AutoStore.git
 cd Simulacion_AutoStore
 ```
 

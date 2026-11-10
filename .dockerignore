@@ -1,0 +1,10 @@
+.git
+.venv
+venv
+.pytest_cache
+_noop
+.opencode
+output
+m1
+**/__pycache__
+**/*.pyc

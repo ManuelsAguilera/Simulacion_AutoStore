@@ -1,0 +1,26 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      WATCHFILES_FORCE_POLLING: "true"
+    volumes:
+      - ./api:/app/api
+      - ./bus_persistencia:/app/bus_persistencia
+      - ./motor:/app/motor
+      - ./plugins:/app/plugins
+      - ./data:/app/data
+      - ./output:/app/output
+
+  interfaz:
+    build:
+      context: ./m1
+    ports:
+      - "127.0.0.1:8100:8100"
+    volumes:
+      - ./m1/src:/app/src
+    depends_on:
+      - api
