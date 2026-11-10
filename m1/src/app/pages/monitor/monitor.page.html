@@ -1,10 +1,11 @@
-<app-bus-strip [bus]="bus!"></app-bus-strip>
+@if (!bus?.experimento) {<app-bus-strip [bus]="bus!"></app-bus-strip>}
 
 <div class="monitor-page">
+  <app-experimentos vista="monitor"></app-experimentos>
 
   @if (vista === '2d') {
 
-    <div class="monitor__body">
+    <div class="monitor__body" [class.monitor__body--experimental]="bus?.experimento">
 
       <div class="monitor__grid-area">
 
@@ -17,14 +18,14 @@
                     (click)="setVista('3d')">3D Omniverse</button>
           </div>
 
-          <app-control-bar
+          @if (!bus?.experimento) {<app-control-bar
             [running]="bus?.running ?? false"
             [speed]="(bus?.velocidad ?? 1)"
             (play)="onPlay()"
             (pause)="onPause()"
             (reset)="onReset()"
             (speedChange)="onSpeedChange($event)"
-          ></app-control-bar>
+          ></app-control-bar>}
         </div>
 
         <!-- Grid -->
@@ -46,7 +47,7 @@
       </div>
 
       <!-- KPI sidebar -->
-      @if (bus) {
+      @if (bus && !bus.experimento) {
         <app-kpi-sidebar [bus]="bus" class="monitor__kpi-area"></app-kpi-sidebar>
       }
 

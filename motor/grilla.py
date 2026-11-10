@@ -348,6 +348,11 @@ class Grilla:
     def total_cajas(self) -> int:
         return len(self._celdas)
 
+    @property
+    def cajas(self) -> list[Caja]:
+        """Copia de las cajas almacenadas; no incluye cargas transportadas."""
+        return list(self._celdas.values())
+
     # ------------------------------------------------------------------
     # Delta para el TickDelta del bus
     # ------------------------------------------------------------------

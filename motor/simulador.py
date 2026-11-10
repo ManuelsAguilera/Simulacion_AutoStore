@@ -63,7 +63,9 @@ class AutoStoreSimulator:
         # Condición de término por ola (Feature 5): tamaño del lote de pedidos
         # cargado al inicio. La sesión se detiene al completar el 100%.
         self.total_ola: int = 0
+        self.plan_olas = None
         self._ola_completada_emitida: bool = False
+        self._politica_olas = None
 
         # Buffers de delta — se vacían en _construir_delta()
         self._grilla_delta: list[Caja] = []
@@ -84,7 +86,8 @@ class AutoStoreSimulator:
     def last_tick_eventos(self) -> list[dict]:
         return self._last_tick_eventos
 
-    def inicializar_desde_bus(self, seed: int | None = None) -> None:
+    def inicializar_desde_bus(self, seed: int | None = None, inventario: list[Caja] | None = None,
+                             plan_olas: dict | None = None) -> None:
         """Lee la config del bus, construye la grilla y los robots.
         Emite una advertencia de rendimiento (T-23) si los parámetros
         exceden los límites de referencia (no aborta, solo avisa).
@@ -113,7 +116,20 @@ class AutoStoreSimulator:
 
         # Construir grilla
         self._grilla = Grilla(config)
-        self._grilla.inicializar_aleatoria(seed=seed)
+        if inventario is None:
+            self._grilla.inicializar_aleatoria(seed=seed)
+        else:
+            posiciones = set()
+            ids = set()
+            for caja in inventario:
+                posicion = (caja.x, caja.y, caja.z)
+                if (posicion in posiciones or caja.id_caja in ids
+                        or not self._grilla.es_interior(caja.x, caja.y)
+                        or not 0 <= caja.z < self._grilla.gz or caja.cantidad < 1):
+                    raise ValueError("Inventario inicial inválido: caja duplicada o fuera de grilla")
+                posiciones.add(posicion)
+                ids.add(caja.id_caja)
+                self._grilla.agregar(caja)
 
         # Construir robots 1×2 con orientación fija en el anillo de tránsito.
         # Cada robot ocupa cuerpo (ancla) + punta (derivada de su orientación);
@@ -161,6 +177,14 @@ class AutoStoreSimulator:
         except (ImportError, NotImplementedError):
             self._despachador = None  # turno diurno quedará en NotImplementedError
 
+        if plan_olas is not None:
+            from experimentos.olas import PlanOlas
+            self.pedidos_cola = []
+            self.plan_olas = PlanOlas(self, **plan_olas)
+            self._politica_olas = snap.politica
+            self.total_ola = len(self.plan_olas.pedidos)
+            self._acum.pedidos_demandados = self.total_ola
+
         # Emitir snapshot inicial: grilla + robots al bus
         grilla_delta, grilla_remove = self._grilla.flush_delta()
         self._grilla_delta.extend(grilla_delta)
@@ -175,18 +199,30 @@ class AutoStoreSimulator:
 
     def avanzar_tick(self) -> None:
         """Ejecuta un paso completo de simulación y escribe el TickDelta."""
-        snap = self.bus.read_snapshot()
-        politica_activa = snap.politica
+        if self.plan_olas is not None and (self.plan_olas.completa or self.plan_olas.fallo):
+            return
+        # El modelo físico experimental conserva la política registrada al inicio;
+        # evita copiar toda la grilla desde el bus dos veces en cada tick largo.
+        if self.plan_olas is not None and self.plan_olas.modelo_preparacion == "fisica":
+            politica_activa = self._politica_olas or "fifo"
+        else:
+            politica_activa = self.bus.read_snapshot().politica
         self._acum.ticks_totales += 1
         self._acum.ticks_turno_actual += 1
 
-        if self.modo == ModoTurno.DIURNO:
+        if self.plan_olas is not None and not self.plan_olas.puede_procesar:
+            if self.plan_olas.modelo_preparacion == "fisica":
+                self.plan_olas.avanzar_preparacion()
+        elif self.modo == ModoTurno.DIURNO:
             self._procesar_turno_diurno(politica_activa)
         else:
             self._procesar_turno_nocturno()
 
         self._resolver_colisiones()
         self._actualizar_kpis()
+
+        if self.plan_olas is not None:
+            self.plan_olas.cerrar_tick(list(self._eventos_pendientes))
 
         # Condición de término por ola (Feature 5): emitir señal una sola vez,
         # DESPUÉS de aplicar las entregas del tick (para no cortar un tick antes
@@ -226,6 +262,8 @@ class AutoStoreSimulator:
         - Diurno (picking): cuando se completa el 100% de la ola, o como fallback
           cuando no quedan pedidos pendientes ni robots activos (ola insatisfacible).
         """
+        if self.plan_olas is not None:
+            return self.plan_olas.completa
         todos_inactivos = all(
             r.estado == RobotEstado.INACTIVO for r in self.robots.values()
         )
@@ -320,8 +358,8 @@ class AutoStoreSimulator:
         try:
             from motor.kpis import calcular_kpis
             if self._grilla is not None:
-                snap = self.bus.read_snapshot()
-                self.kpis = calcular_kpis(self._acum, self._grilla, snap.config)
+                config = self._grilla.config
+                self.kpis = calcular_kpis(self._acum, self._grilla, config)
         except NotImplementedError:
             pass  # kpis.py todavía en stub — no bloquea el resto del tick
 

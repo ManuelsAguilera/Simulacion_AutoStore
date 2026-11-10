@@ -4,11 +4,12 @@ import { AlertController } from '@ionic/angular/standalone';
 import { BusClientService, BusState } from '../../core/services/bus-client.service';
 import { SimApiService } from '../../core/services/sim-api.service';
 import { BusStripComponent } from '../../shared/components/bus-strip/bus-strip.component';
+import { ExperimentosComponent } from '../../shared/components/experimentos/experimentos.component';
 
 @Component({
   selector: 'app-reportes',
   templateUrl: './reportes.page.html',
-  imports: [BusStripComponent],
+  imports: [BusStripComponent, ExperimentosComponent],
 })
 export class ReportesPage implements OnInit, OnDestroy {
   bus: BusState | null = null;

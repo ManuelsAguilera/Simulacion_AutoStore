@@ -1,4 +1,6 @@
 <div class="as-page">
+  <app-experimentos vista="historial"></app-experimentos>
+  <details><summary>Exportaciones anteriores del simulador</summary>
   @if (bus) {
     <app-bus-strip [bus]="bus"></app-bus-strip>
   }
@@ -46,4 +48,5 @@
       </div>
     </div>
   </div>
+</details>
 </div>

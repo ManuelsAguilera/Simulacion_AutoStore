@@ -1,5 +1,56 @@
 # AGENTS.md — AutoStore Simulator
 
+> 10-nov-2026: comparación de configuraciones desde Configuración/Historial.
+> `experimentos/lotes.py` y `/experiments/batches` ejecutan hasta 24 combinaciones
+> tamaño/orden desde la misma instancia y un bus independiente por corrida.
+> Un lote activo, cancelación conservando registros, recuperación y exportación
+> JSON; archivos en `output/lotes/`, intentos en `output/corridas/` con contexto.
+> Guía `docs/comparar_olas.md`. Verificador ampliado: 115 pruebas pasaron;
+> producción compila. Navegador: lote `514d1c3525784c38901708be15bc5e8a`, cuatro
+> configuraciones completas de 500 solicitudes, tabla recuperada y enlaces a
+> corridas verificados. No comparte ni reinicia la simulación individual.
+> Instancias v1 usan preparación sintética cero en esta comparación; v2 física.
+> Cambios locales sin publicar.
+
+> 10-nov-2026: ampliación v2 implementada con tres agentes Luna e integración del
+> agente principal. Listas hasta 1000, cinco urgencias muestreadas de normal,
+> inventario sin huecos y preparación física secuencial dentro del almacén.
+> Guía `docs/preparacion_fisica_v2.md`; verificador
+> `scripts/verificar_preparacion_fisica.py`: 102 pruebas específicas verificadas
+> (incluye conservación, API y bus); compilación de producción pasó. Piloto
+> `output/piloto_fisico_2026-11-10_v2/`: 72/72 completas, 3.808.594 eventos auditados.
+> Navegador: 1000/1000 en 37458 ticks, 904 de preparación, 40 reubicaciones;
+> resultado recuperado desde historial. Preparación serializada con un robot;
+> tiempos sin calibración operacional. V1 conserva su preparación sintética.
+> No duplicar el logger por sesión ni la película completa por tick en v2.
+> Cambios locales sin commit/push.
+
+> 10-nov-2026: cierre local de las etapas 1–5. Interfaz de configuración, seguimiento
+> y reportes experimentales; catálogo de pilotos y regla adaptativa. 53 pruebas
+> específicas pasaron y producción compila. Guías `docs/experimentos_etapa4.md` y
+> `docs/experimentos_etapa5.md`. Piloto `output/piloto_2026-11-10_v3/`: 126 corridas,
+> 125 completas y una por horizonte; informe reproducible con `python -m
+> experimentos.analizar`. No implica validación operacional. Cambios sin publicar.
+
+> 10-nov-2026: tercera etapa local, `experimentos/resultados.py`. Corridas con
+> ID único en `output/corridas/`, entrada/eventos/estado y consulta por CLI/API.
+> Auditoría controlada de excavación y esperas; guía `docs/experimentos_etapa3.md`.
+> Verificar con `scripts/verificar_etapa3.py` (límite 60 segundos). Falta la
+> interfaz para mostrar instancias, olas y este historial. Sin commit ni push.
+
+> 10-nov-2026: segunda etapa local en la misma rama: `experimentos/olas.py`
+> implementa olas sucesivas, preparación secuencial en ticks y urgentes primero.
+> API `/snapshot` incluye `experimento`; guía en `docs/experimentos_etapa2.md`.
+> Verificación: `scripts/verificar_etapa2.py`, 36 pruebas pasaron. Falta interfaz
+> experimental e historial recuperable de resultados. Cambios sin publicar.
+
+> 10-nov-2026: primera etapa experimental implementada localmente en
+> `codex/experimentos-etapa-1`. Ver `docs/experimentos_etapa1.md` y
+> `experimentos/instancias.py`: inventario explícito, 12 solicitudes sintéticas
+> identificadas y urgencias externas al modelo compartido Pedido. Verificación
+> acotada: `.venv/Scripts/python.exe scripts/verificar_etapa1.py` (15 pruebas).
+> No hay todavía olas sucesivas ni selección de instancias en la interfaz.
+
 Compact reference for AI coding agents. See `CLAUDE.md` for full project context and `docs/` for contracts.
 
 ## Entrypoints

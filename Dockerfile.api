@@ -10,8 +10,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY api/ ./api/
 COPY bus_persistencia/ ./bus_persistencia/
 COPY motor/ ./motor/
+COPY experimentos/ ./experimentos/
 COPY plugins/ ./plugins/
 COPY data/ ./data/
 
 EXPOSE 8000
-CMD ["uvicorn", "api.server:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "api", "--reload-dir", "bus_persistencia", "--reload-dir", "motor", "--reload-dir", "plugins"]
+CMD ["uvicorn", "api.server:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "api", "--reload-dir", "bus_persistencia", "--reload-dir", "motor", "--reload-dir", "plugins", "--reload-dir", "experimentos"]

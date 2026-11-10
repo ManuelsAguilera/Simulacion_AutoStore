@@ -48,7 +48,9 @@ export interface WsKpis {
   cajasPresentes: number;
 }
 
+import { PlanExperimento } from './experimentos.model';
 export interface WsTickPayload {
+  experimento?: PlanExperimento|null;
   type:      'tick';
   tick:      number;
   mode:      string;

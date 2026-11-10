@@ -7,12 +7,13 @@ import { SimApiService } from '../../core/services/sim-api.service';
 import { SimMode, PickingPolicy } from '../../core/enums/sim.enums';
 import { FileLoaderComponent } from '../../shared/components/file-loader/file-loader.component';
 import { PolicySelectorComponent } from '../../shared/components/policy-selector/policy-selector.component';
+import { ExperimentosComponent } from '../../shared/components/experimentos/experimentos.component';
 
 @Component({
   selector: 'app-config',
   templateUrl: './config.page.html',
   styleUrls: ['./config.page.scss'],
-  imports: [FileLoaderComponent, PolicySelectorComponent],
+  imports: [FileLoaderComponent, PolicySelectorComponent, ExperimentosComponent],
 })
 export class ConfigPage implements OnInit, OnDestroy {
   bus: BusState | null = null;

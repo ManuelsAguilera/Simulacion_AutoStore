@@ -100,6 +100,17 @@ class StateBus:
         """Lectura no bloqueante: retorna copia profunda del último snapshot."""
         return deep_copy_snapshot(self._snapshot)
 
+    def set_event_logging(self, enabled: bool) -> None:
+        """Evita duplicar trazas cuando RegistroCorrida es el registro principal.
+
+        No cambia la escritura del estado ni la autorización del escritor.
+        El registro histórico por sesión sigue habilitado por defecto.
+        """
+        if type(enabled) is not bool:
+            raise ValueError("enabled debe ser booleano")
+        with self._lock:
+            self._event_logging = enabled
+
     def write_tick_delta(self, writer_id: str, delta: TickDelta) -> int:
         """M2: aplica delta, incrementa tick, registra eventos y flush diferido."""
         if writer_id != M2_WRITER_ID:
@@ -114,10 +125,13 @@ class StateBus:
             self._apply_delta(delta)
             self._refresh_snapshot()
 
-            for evento in delta.eventos:
-                self._session_logger.buffer_event(self._tick, evento)
+            registrar = getattr(self, "_event_logging", True)
+            if registrar:
+                for evento in delta.eventos:
+                    self._session_logger.buffer_event(self._tick, evento)
 
-        self._session_logger.flush_tick_async(self._tick)
+        if registrar:
+            self._session_logger.flush_tick_async(self._tick)
 
         elapsed_ms = (time.perf_counter() - start) * 1000
         self._write_latencies_ms.append(elapsed_ms)

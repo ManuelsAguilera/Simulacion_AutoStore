@@ -59,6 +59,7 @@
   flex-direction: column;
   gap: 16px;
 }
+.monitor__body--experimental { grid-template-columns: 1fr; }
 
 .monitor__kpi-area {
   min-width: 0;

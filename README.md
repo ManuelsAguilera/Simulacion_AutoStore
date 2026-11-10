@@ -8,6 +8,27 @@ Repositorio de trabajo: `https://github.com/ManuelsAguilera/Simulacion_AutoStore
 
 ## Requisitos previos
 
+Para ejecutar y guardar varias configuraciones desde la interfaz, usa
+**Comparar configuraciones de ola**: [guía de comparación por lotes](docs/comparar_olas.md).
+
+La ampliación v2 incorpora listas de 500–1000, cinco clases de urgencia obtenidas
+de una puntuación normal y preparación física secuencial mediante excavación y
+reubicación. Uso, límites y reproducción: [guía v2](docs/preparacion_fisica_v2.md).
+Verificación: 102 pruebas específicas y compilación de producción; piloto de
+72 corridas completas, con trazas auditadas. Los modelos anteriores siguen disponibles.
+
+La primera etapa de experimentos permite generar y recargar una instancia
+sintética con 12 solicitudes, tres SKU y tres pedidos urgentes. Uso y límites:
+[docs/experimentos_etapa1.md](docs/experimentos_etapa1.md).
+La segunda etapa agrega olas sucesivas, preparación configurable y la regla
+«urgentes primero»: [docs/experimentos_etapa2.md](docs/experimentos_etapa2.md).
+La tercera etapa conserva resultados por corrida y verifica medidas de excavación:
+[docs/experimentos_etapa3.md](docs/experimentos_etapa3.md).
+Configuración, monitor e historial de experimentos desde el navegador:
+[docs/experimentos_etapa4.md](docs/experimentos_etapa4.md).
+Piloto por lotes, regla variable y análisis reproducible:
+[docs/experimentos_etapa5.md](docs/experimentos_etapa5.md).
+
 ### Inicio con Docker (Windows)
 
 Instala y abre Docker Desktop con el motor Linux. Después haz doble clic en

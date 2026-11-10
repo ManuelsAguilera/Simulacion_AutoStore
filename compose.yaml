@@ -11,6 +11,7 @@ services:
       - ./api:/app/api
       - ./bus_persistencia:/app/bus_persistencia
       - ./motor:/app/motor
+      - ./experimentos:/app/experimentos
       - ./plugins:/app/plugins
       - ./data:/app/data
       - ./output:/app/output

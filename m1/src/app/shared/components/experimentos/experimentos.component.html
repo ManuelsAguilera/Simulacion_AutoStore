@@ -1,0 +1,139 @@
+<section class="exp">
+  @if(busy){<p role="status">Procesando…</p>}
+  @if(error){<p class="error" role="alert">{{error}}</p>}
+  @if(vista==='configuracion'){
+    <header><div><p class="eyebrow">Experimentos · Instancias v2</p><h2>Preparar pedidos y olas</h2>
+      <p>Genera una lista reproducible de 500 a 1000 solicitudes y un inventario factible con cinco clases de urgencia.</p></div><a routerLink="/reportes">Ver historial →</a></header>
+    <div class="columns">
+      <form #generador="ngForm" (ngSubmit)="generar()" class="panel">
+        <h3>1. Generar la instancia</h3><fieldset [disabled]="busy">
+          <label>Solicitudes<input name="cantidad" type="number" min="500" max="1000" step="1" required [(ngModel)]="cantidad"></label>
+          <div class="actions quick"><button type="button" class="secondary" (click)="cantidad=500">500</button><button type="button" class="secondary" (click)="cantidad=750">750</button><button type="button" class="secondary" (click)="cantidad=1000">1000</button></div>
+          <label>Productos distintos<input name="productos" type="number" min="1" max="500" step="1" required [(ngModel)]="productos"></label>
+          <label>Semilla de inventario, lista y urgencias<input name="semilla" type="number" step="1" required [(ngModel)]="semilla"></label>
+          <div class="columns"><label>Grilla X (opcional)<input name="x" type="number" min="1" [(ngModel)]="x" placeholder="Automática"></label><label>Grilla Y (opcional)<input name="y" type="number" min="1" [(ngModel)]="y" placeholder="Automática"></label></div>
+          <label>Profundidad Z<input name="z" type="number" min="1" max="100" step="1" required [(ngModel)]="z"></label>
+          <label>Ocupación objetivo<input name="ocupacion" type="number" min="0.01" max="1" step="0.01" required [(ngModel)]="ocupacion"></label>
+          <label>Robots<input name="robots" type="number" min="1" step="1" required [(ngModel)]="robots"></label>
+          <label>Distribución de productos<select name="perfil" [(ngModel)]="perfil"><option value="uniforme">Uniforme</option><option value="concentrado">Concentrada</option></select></label>
+          <h4>Puntuación normal de urgencia</h4><div class="columns"><label>Media<input name="mediaUrgencia" type="number" step="0.1" required [(ngModel)]="mediaUrgencia"></label><label>Desviación estándar<input name="desviacionUrgencia" type="number" min="0.01" step="0.1" required [(ngModel)]="desviacionUrgencia"></label></div>
+          <label>Plazo sintético base (ticks, opcional)<input name="plazoBase" type="number" min="1" step="1" [(ngModel)]="plazoBase" placeholder="Sin plazo"></label>
+          <p>Las categorías se asignan mediante cortes estables de la puntuación; las cantidades observadas varían por semilla.</p>
+          <button type="submit" [disabled]="generador.invalid">Generar instancia</button>
+          <label>Instancias guardadas<select name="guardada" [(ngModel)]="elegida" (ngModelChange)="instancia=null"><option value="">Seleccionar una instancia</option>
+            @for(i of instancias;track i.id){<option [value]="i.id">v{{i.version??1}} · {{i.total}} solicitudes · semilla {{i.semilla}} · {{i.id.slice(0,8)}}</option>}
+          </select></label><button type="button" class="secondary" [disabled]="!elegida" (click)="recuperar()">Recuperar instancia</button>
+        </fieldset>
+      </form>
+      <form #formOlas="ngForm" (ngSubmit)="iniciar()" class="panel">
+        <h3>2. Configurar el estudio</h3><fieldset [disabled]="busy">
+          <label>Solicitudes por grupo<input name="tamano" type="number" min="1" step="1" required [(ngModel)]="opciones.tamano"></label>
+          <label>Orden de formación<select name="regla" [(ngModel)]="opciones.regla"><option value="original">Orden original</option><option value="urgentes_primero">Prioridad crítica a muy baja</option></select></label>
+          @if(instancia?.instancia?.version===1){<label>Preparación del grupo<select name="modelo" [(ngModel)]="opciones.modelo_preparacion"><option value="sintetica">Sintética: reproducir el modelo de instancia v1</option></select></label>}
+          @else{<label>Preparación del grupo<select name="modelo" [(ngModel)]="opciones.modelo_preparacion"><option value="fisica">Física: tareas y movimientos del almacén</option></select></label>}
+          @if(opciones.modelo_preparacion==='fisica'){
+            <p>La ola se libera después de ejecutar y verificar la preparación en el estado físico del almacén. Su duración procede de las acciones de los robots.</p>
+          }@else{
+            <p class="notice">La preparación sintética corresponde al modelo anterior y solo se usa para reproducir instancias v1.</p>
+            <div class="columns"><label>Preparación fija por grupo<input name="fija" type="number" min="0" step="1" required [(ngModel)]="opciones.preparacion_fija"></label><label>Por solicitud<input name="porPedido" type="number" min="0" step="1" required [(ngModel)]="opciones.preparacion_por_pedido"></label></div>
+          }
+          <label>Horizonte de seguridad (ticks)<input name="limite" type="number" min="1" max="100000" step="1" required [(ngModel)]="opciones.limite_ticks"></label>
+          <label>{{opciones.modelo_preparacion==='fisica'?'Ventana sin progreso físico (opcional)':'Ventana de recuperación sin entregas (opcional)'}}<input name="ventana" type="number" min="1" step="1" placeholder="Desactivada" [(ngModel)]="opciones.ventana_sin_entregas"></label>
+          <p>La primera ola también se prepara. Cada grupo conserva el inventario y las posiciones de los anteriores.</p>
+          <button type="submit" [disabled]="!instancia||formOlas.invalid">Cargar e iniciar corrida</button>
+        </fieldset>
+      </form>
+    </div>
+    @if(instancia){
+      <div class="panel"><h3>Instancia {{instancia.id.slice(0,8)}} · versión {{instancia.instancia.version}} · semilla {{instancia.instancia.semilla}}</h3>
+        <p>Grilla {{instancia.instancia.config.grilla.x}} × {{instancia.instancia.config.grilla.y}} × {{instancia.instancia.config.grilla.z}} · {{instancia.instancia.config.robots}} robots · {{instancia.instancia.solicitudes.length}} solicitudes · {{instancia.instancia.inventario?.length??0}} cajas.</p>
+        @if(instancia.instancia.version>=2){<div class="class-counts">@for(c of clases;track c){<span>{{nombreClase(c)}}: <b>{{cuentaClase(c)}}</b> observadas · {{esperadaClase(c)|number:'1.0-1'}} esperadas</span>}</div>}
+        @else{<p>Esta instancia conserva las categorías originales: normal y urgente.</p>}
+        <div class="columns"><label>Buscar ID o producto<input name="buscarInstancia" [(ngModel)]="filtroInstancia" (ngModelChange)="paginaInstancia=1"></label><label>Clase<select name="claseInstancia" [(ngModel)]="claseInstancia" (ngModelChange)="paginaInstancia=1"><option value="">Todas</option>@for(c of clases;track c){<option [value]="c">{{nombreClase(c)}}</option>}</select></label></div>
+        <div class="table"><table><thead><tr><th>Solicitud</th><th>Producto</th><th>Puntuación</th><th>Urgencia</th><th>Plazo (ticks)</th></tr></thead><tbody>
+          @for(s of solicitudesVisibles;track s.pedido.id_pedido){<tr><td>{{s.pedido.id_pedido}}</td><td>{{s.pedido.id_sku}}</td><td>{{s.puntuacion==null?'—':(s.puntuacion|number:'1.2-3')}}</td><td><span class="urgency" [attr.data-class]="s.urgencia">{{nombreClase(s.urgencia)}}</span></td><td>{{s.plazo_tick??'—'}}</td></tr>}
+        </tbody></table></div>
+        <div class="actions"><button class="secondary" [disabled]="paginaInstancia<=1" (click)="paginaInstancia=paginaInstancia-1">Anterior</button><span>Página {{paginaInstancia}} de {{paginasInstancia}} · {{totalSolicitudesFiltradas}} solicitudes</span><button class="secondary" [disabled]="paginaInstancia>=paginasInstancia" (click)="paginaInstancia=paginaInstancia+1">Siguiente</button></div>
+      </div>
+    }
+  }
+  @if(vista==='monitor'){
+    <header><div><p class="eyebrow">Seguimiento de olas · snapshot compacto</p><h2>Pedidos en curso</h2></div><a routerLink="/reportes">Resultados guardados →</a></header>
+    @if(estado?.experimento;as e){
+      <p class="run-id">Corrida {{estado?.corrida?.id}} · {{etiqueta(estado?.corrida?.estado??'lista')}} · actualización en vivo</p>
+      <div class="actions"><button [disabled]="busy||!conectado||terminal||estado?.status==='RUNNING'" (click)="controlar('play')">Continuar</button><button class="secondary" [disabled]="busy||!conectado||estado?.status!=='RUNNING'" (click)="controlar('pause')">Pausar</button><button class="secondary" [disabled]="busy||!conectado" (click)="controlar('reset')">Nueva corrida con la misma configuración</button></div>
+      <div class="metrics"><div><small>Tiempo transcurrido</small><strong>{{e.tiempo}} ticks</strong></div><div><small>Preparación física</small><strong>{{e.preparacion_total}} ticks</strong></div><div><small>Solicitudes entregadas</small><strong>{{e.servicio_por_categoria?sumEntregados(e.servicio_por_categoria):'—'}} / {{e.total_pedidos??'—'}}</strong></div><div><small>Estado del grupo</small><strong>{{etiqueta(e.estado_ola)}}</strong></div></div>
+      <p>Finalización completa: <b>{{e.tiempo_finalizacion!==null?e.tiempo_finalizacion+' ticks':'Sin finalizar'}}</b>. Orden: {{etiqueta(e.regla)}} · tamaño {{e.tamano}}.</p>
+      @if(e.modelo_preparacion==='fisica'&&e.preparacion_fisica;as f){<article class="panel physical"><h3>Preparación del grupo · {{etiqueta(f.fase??'preparando')}}</h3><p>Caja: <b>{{f.caja??'—'}}</b> · Robot: <b>{{f.robot??'—'}}</b> · Tareas pendientes: <b>{{f.fase==='completa'?0:cantidadPendiente(f.pendientes)}}</b></p><p>Origen: {{posicion(f.origen)}} · Destino: {{posicion(f.destino)}} @if(f.motivo){· {{f.motivo}}}</p></article>}
+      @if(e.modelo_preparacion!=='fisica'){<p>Modelo anterior · urgentes a tiempo: {{e.urgentes_a_tiempo}} / {{e.urgentes_total}}. Conserva las categorías normal y urgente.</p>}
+      @if(e.modelo_preparacion==='fisica'){<div class="panel"><h3>Servicio por clase</h3><div class="table"><table><thead><tr><th>Clase</th><th>Total</th><th>Entregadas</th><th>A tiempo</th><th>Cumplimiento</th><th>Tiempo medio desde inicio</th></tr></thead><tbody>@for(c of clases;track c){@let m=e.servicio_por_categoria?.[c];<tr><td>{{nombreClase(c)}}</td><td>{{m?.total??0}}</td><td>{{m?.entregados??0}}</td><td>{{m?.a_tiempo??0}}</td><td>{{cumplimiento(m)}}</td><td>{{tiempoMedio(m)}}</td></tr>}</tbody></table></div></div>}
+      <div class="panel"><h3>Solicitudes · {{pedidosMonitor?.total??e.total_pedidos??0}}</h3><div class="columns"><label>Buscar solicitud o SKU<input name="busquedaMonitor" [(ngModel)]="filtroMonitor"></label><label>Clase<select name="claseMonitor" [(ngModel)]="claseMonitor"><option value="">Todas</option>@for(c of clases;track c){<option [value]="c">{{nombreClase(c)}}</option>}</select></label><label>Estado<select name="estadoMonitor" [(ngModel)]="estadoMonitor"><option value="">Todos</option><option value="entregado">Entregado</option><option value="asignado">En atención</option><option value="sin_liberar">Por liberar</option><option value="pendiente">No entregado</option></select></label></div><button class="secondary" [disabled]="busy" (click)="paginaMonitor=1;actualizarPedidosMonitor()">Aplicar filtros</button>
+        <div class="table"><table><thead><tr><th>Solicitud</th><th>Producto</th><th>Urgencia</th><th>Grupo</th><th>Plazo</th><th>Estado</th><th>Preparación/liberación</th><th>Entrega</th></tr></thead><tbody>@for(p of pedidosMonitor?.items??[];track p.id){<tr><td>{{p.id}}</td><td>{{p.id_sku}}</td><td>{{nombreClase(p.urgencia)}}</td><td>{{p.ola??'—'}}</td><td>{{p.plazo_tick??'—'}}</td><td>{{estadoPedido(p)}}</td><td>{{p.liberacion??'—'}}</td><td>{{p.entrega??'—'}}</td></tr>}</tbody></table></div>
+        <div class="actions"><button class="secondary" [disabled]="paginaMonitor<=1||busy" (click)="paginaMonitorA(-1)">Anterior</button><span>Página {{paginaMonitor}} · {{pedidosMonitor?.total??0}} solicitudes filtradas</span><button class="secondary" [disabled]="!pedidosMonitor||paginaMonitor*pedidosMonitor.tamano>=pedidosMonitor.total||busy" (click)="paginaMonitorA(1)">Siguiente</button></div>
+      </div>
+      <div class="panel"><h3>Grupos recientes</h3><div class="table"><table><thead><tr><th>Grupo</th><th>Solicitudes</th><th>Inicio de preparación</th><th>Liberación</th><th>Última entrega</th></tr></thead><tbody>@for(o of e.olas;track o.numero){<tr><td>{{o.numero}}</td><td>{{o.pedidos.length}}</td><td>{{o.preparacion_inicio}}</td><td>{{o.liberacion??'Pendiente'}}</td><td>{{o.fin??'Pendiente'}}</td></tr>}</tbody></table></div></div>
+      <div class="panel"><h3>Eventos físicos</h3><div class="columns"><label>Tipo<input name="tipoEvento" [(ngModel)]="tipoEvento"></label><label>ID de solicitud<input name="pedidoEvento" [(ngModel)]="pedidoEvento"></label><label>Grupo<input name="olaEvento" type="number" min="1" [(ngModel)]="olaEvento"></label></div><div class="actions"><button class="secondary" [disabled]="busy" (click)="resetearEventos();cargarEventos()">Aplicar filtros</button><button class="secondary" [disabled]="busy||!hayMasEventos&&eventosMonitor.length>0" (click)="cargarEventos()">{{eventosMonitor.length?'Cargar más eventos':'Cargar eventos'}}</button></div><div class="table"><table><thead><tr><th>Secuencia</th><th>Evento</th></tr></thead><tbody>@for(ev of eventosMonitor;track $index){<tr><td>{{ $index+1 }}</td><td><code>{{ev|json}}</code></td></tr>}</tbody></table></div></div>
+    }@else{<p>Selecciona una instancia y configura sus grupos para comenzar.</p><a routerLink="/config">Preparar un experimento →</a>}
+  }
+  @if(vista==='historial'){
+    <header><div><p class="eyebrow">Resultados conservados</p><h2>Historial de corridas</h2><p>Consulta páginas de solicitudes y métricas de las cinco clases.</p></div><button class="secondary" [disabled]="busy" (click)="actualizarHistorial()">Actualizar historial</button></header>
+    @if(!corridas.length&&!busy&&!error){<p>Aún no hay corridas guardadas.</p><a routerLink="/config">Generar una instancia →</a>}
+    <div class="columns"><label>Buscar corrida o instancia por ID<input name="buscar" [(ngModel)]="filtro" (ngModelChange)="pagina=0" placeholder="ID completo o primeros caracteres"></label><label>Estado<select name="estadoFiltro" [(ngModel)]="filtroEstado" (ngModelChange)="pagina=0"><option value="">Todos</option><option value="completa">Completa</option><option value="horizonte_agotado">Horizonte agotado</option><option value="inviable_preparacion">Preparación inviable</option><option value="sin_entregas">Sin entregas</option><option value="interrumpida">Interrumpida</option><option value="error">Error</option></select></label><label>Versión de instancia<select name="versionFiltro" [(ngModel)]="filtroVersion" (ngModelChange)="pagina=0"><option value="">Todas</option><option value="1">v1 · preparación sintética</option><option value="2">v2 · preparación física</option></select></label></div>
+    <div class="table"><table><thead><tr><th>Comparar</th><th>Corrida</th><th>Inicio</th><th>Estado</th><th>Entregadas</th><th>Tiempo</th><th>Preparación</th></tr></thead><tbody>@for(r of visibles;track r.id){<tr><td><input type="checkbox" [attr.aria-label]="'Seleccionar corrida '+r.id" [checked]="tiene(r.id)" [disabled]="busy||(!tiene(r.id)&&seleccion.length===2)" (change)="seleccionar(r.id)"></td><td [title]="r.id">{{r.id.slice(0,8)}}</td><td>{{r.creada|date:'dd/MM HH:mm'}}</td><td>{{etiqueta(r.estado)}}</td><td>{{r.entregados}} / {{r.total}}</td><td>{{r.tiempo}} ticks</td><td>{{etiqueta(r.modelo_preparacion??'sintetica')}}</td></tr>}</tbody></table></div>
+    <div class="actions"><button class="secondary" [disabled]="pagina===0" (click)="pagina=pagina-1">Anterior</button><span>Página {{pagina+1}} de {{paginas}} · {{filtradas.length}} corridas</span><button class="secondary" [disabled]="pagina+1>=paginas" (click)="pagina=pagina+1">Siguiente</button></div>
+    @if(diferentes){<p class="notice">Las corridas usan instancias distintas; sus diferencias no se atribuyen solo al tamaño de grupo o al orden.</p>}
+    <div class="columns results">@for(d of seleccion;track d.doc.resultado.id){<article class="panel"><h3>Corrida {{d.doc.resultado.id.slice(0,8)}} · {{etiqueta(d.doc.resultado.estado)}}</h3><p>Instancia {{d.doc.entrada.instancia_id.slice(0,8)}} · semilla {{d.doc.entrada.instancia.semilla}} · {{etiqueta(d.doc.entrada.opciones.modelo_preparacion??'sintetica')}}</p>
+      @if(d.doc.resultado.motivo){<p class="notice">{{d.doc.resultado.motivo}}</p>}<dl><dt>Entregadas</dt><dd>{{d.doc.resultado.entregados}} / {{d.doc.resultado.total}}</dd><dt>Tiempo de finalización</dt><dd>{{d.doc.resultado.tiempo_finalizacion!==null?d.doc.resultado.tiempo_finalizacion+' ticks':'Sin finalizar'}}</dd><dt>Preparación</dt><dd>{{d.doc.resultado.preparacion_total}} ticks</dd><dt>Movimientos de bloqueadores</dt><dd>{{d.doc.resultado.movimientos_bloqueadores}}</dd></dl>
+      @if(d.doc.entrada.instancia.version>=2){<div class="table"><table><thead><tr><th>Clase</th><th>Total</th><th>Entregadas</th><th>A tiempo</th><th>Cumplimiento</th><th>Tiempo medio desde inicio</th></tr></thead><tbody>@for(c of clases;track c){@let m=d.doc.resultado.servicio_por_categoria?.[c];<tr><td>{{nombreClase(c)}}</td><td>{{m?.total??0}}</td><td>{{m?.entregados??0}}</td><td>{{m?.a_tiempo??0}}</td><td>{{cumplimiento(m)}}</td><td>{{tiempoMedio(m)}}</td></tr>}</tbody></table></div>}
+      @else{<p>Modelo anterior · urgentes a tiempo: {{d.doc.resultado.urgentes_a_tiempo}} / {{d.doc.resultado.urgentes_total}}. Sus categorías normal/urgente no se convierten a cinco clases.</p>}
+      <details><summary>Solicitudes de esta corrida (paginadas)</summary><div class="table"><table><thead><tr><th>Solicitud</th><th>Clase</th><th>Plazo</th><th>Liberación</th><th>Entrega</th></tr></thead><tbody>@for(p of d.pedidos?.items??[];track p.id){<tr><td>{{p.id}}</td><td>{{nombreClase(p.urgencia)}}</td><td>{{p.plazo_tick??'—'}}</td><td>{{p.liberacion??'—'}}</td><td>{{p.entrega??'Pendiente'}}</td></tr>}</tbody></table></div><div class="actions"><button class="secondary" [disabled]="d.pagina<=1||busy" (click)="paginaSeleccionada(d.doc.resultado.id,-1)">Anterior</button><span>Página {{d.pagina}} · {{d.pedidos?.total??0}} solicitudes</span><button class="secondary" [disabled]="!d.pedidos||d.pagina*50>=d.pedidos.total||busy" (click)="paginaSeleccionada(d.doc.resultado.id,1)">Siguiente</button></div></details>
+    </article>}</div>
+  }
+  @if(vista==='configuracion'||vista==='historial'){
+    <section class="panel batch-panel">
+      <header><div><p class="eyebrow">Evaluación por lotes</p><h2>Comparar configuraciones de ola</h2>
+        <p>Ejecuta cada combinación sobre copias independientes de la misma instancia y conserva sus resultados.</p></div></header>
+      @if(vista==='configuracion'){
+        <div class="batch-config">
+          @if(instancia){<p>Instancia activa: <b>{{instancia.id.slice(0,8)}}</b> · {{instancia.instancia.solicitudes.length}} solicitudes · semilla {{instancia.instancia.semilla}}.</p>}
+          @else{<p>Genera o recupera una instancia arriba para configurar un lote.</p>}
+          <div class="columns">
+            <label>Nombre del lote (opcional)<input name="nombreLote" [(ngModel)]="nombreLote" maxlength="80" placeholder="Comparación exploratoria"></label>
+            <label>Tamaños separados por coma<input name="tamanosLote" [(ngModel)]="tamanosLote" placeholder="25,50,100"></label>
+          </div>
+          <div class="columns checks">
+            <label><span><input type="checkbox" name="incluirN" [(ngModel)]="incluirOlaCompleta"> Incluir una ola con todas las solicitudes (N)</span></label>
+            <label><span><input type="checkbox" name="reglaOriginal" [(ngModel)]="reglaOriginal"> Orden original</span></label>
+            <label><span><input type="checkbox" name="reglaUrgentes" [(ngModel)]="reglaUrgentes"> Prioridad de urgencia</span></label>
+          </div>
+          <p>Vista previa: {{configuracionesLotePreview.length}} combinaciones · máximo 24. Horizonte por corrida: {{opciones.limite_ticks}} ticks · ventana sin progreso: {{opciones.ventana_sin_entregas??'desactivada'}}.</p>
+          @if(errorConfiguracionLote){<p class="notice">{{errorConfiguracionLote}}</p>}
+          @if(configuracionesLotePreview.length){<div class="table"><table><thead><tr><th>#</th><th>Tamaño</th><th>Orden</th></tr></thead><tbody>
+            @for(c of configuracionesLotePreview;track c.tamano+'-'+c.regla;let i=$index){<tr><td>{{i+1}}</td><td>{{c.tamano}}</td><td>{{etiqueta(c.regla)}}</td></tr>}
+          </tbody></table></div>}
+          <button [disabled]="busy||!!errorConfiguracionLote" (click)="crearLote()">Iniciar comparación</button>
+        </div>
+      }
+      <div class="batch-history">
+        <div class="columns">
+          <label>Lotes guardados<select name="loteSeleccionado" [(ngModel)]="loteSeleccionado" (ngModelChange)="seleccionarLote($event)">
+            <option value="">Selecciona un lote</option>
+            @for(item of lotes;track item.id){<option [value]="item.id">{{item.nombre||item.id.slice(0,8)}} · {{etiquetaLote(item.estado)}} · {{item.finalizadas}}/{{item.total_configuraciones}}</option>}
+          </select></label>
+          <div class="actions batch-actions"><button class="secondary" [disabled]="busy" (click)="actualizarLotes()">Actualizar lotes</button>
+            @if(lote){<a [href]="urlExportarLote(lote.id)" target="_blank" rel="noopener" download>Exportar resumen JSON</a>}
+            @if(loteEnCurso){<button class="secondary" [disabled]="busy||lote?.estado==='cancelando'" (click)="cancelarLote()">Cancelar lote</button>}
+          </div>
+        </div>
+        @if(loteError){<p class="error" role="alert">{{loteError}}</p>}
+        @if(lote){<div class="batch-summary"><h3>{{lote.nombre||'Lote '+lote.id.slice(0,8)}} · {{etiquetaLote(lote.estado)}}</h3>
+          <p>Instancia {{lote.instancia_id.slice(0,8)}} · semilla {{lote.semilla}} · {{lote.total_pedidos}} solicitudes · {{lote.finalizadas}} de {{lote.total_configuraciones}} configuraciones finalizadas.</p>
+          @if(lote.estado==='cancelando'){<p class="notice">Cancelación solicitada. Se conservarán las corridas ya registradas.</p>}
+          <div class="table"><table><thead><tr><th>Config.</th><th>Tamaño</th><th>Orden</th><th>Estado</th><th>Corrida</th><th>Tiempo final</th><th>Preparación</th><th>Mov. preparación</th><th>Mov. bloqueadores</th><th>Urgentes a tiempo</th><th></th></tr></thead><tbody>
+            @for(c of lote.configuraciones;track c.id){<tr><td>{{c.id}}</td><td>{{c.tamano}}</td><td>{{etiqueta(c.regla)}}</td><td>{{etiquetaLote(c.estado)}}</td><td>{{c.corrida_id?.slice(0,8)??'—'}}</td><td>{{tiempoComparacion(c)}}</td><td>{{c.resultado?.preparacion_total??'—'}}</td><td>{{c.resultado?.movimientos_preparacion??'—'}}</td><td>{{c.resultado?.movimientos_bloqueadores??'—'}}</td><td>{{porcentaje(c.resultado?.cumplimiento_urgentes)}}</td><td>@if(c.corrida_id){<button class="secondary small" (click)="abrirCorrida(c.corrida_id)">Ver corrida</button>}</td></tr>}
+          </tbody></table></div>
+        </div>}
+      </div>
+    </section>
+  }
+</section>

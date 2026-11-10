@@ -81,6 +81,7 @@ class Tarea:
     # NORTE del que recibirá.
     receptor_handoff: int | None = field(default=None)
     emisor_handoff: int | None = field(default=None)
+    niveles_izados: int = 0
 
 
 # ------------------------------------------------------------------
@@ -100,6 +101,10 @@ class Despachador:
         self._tareas: dict[int, Tarea] = {}      # robot_id -> Tarea activa
         self._cajas_reservadas: set[tuple[int, int, int]] = set()  # celdas ya asignadas
         self._tick_actual: int = 0
+        # El plan experimental puede fijar una caja por solicitud para conservar
+        # identidad entre preparación física y recuperación.
+        self.cajas_objetivo_por_pedido: dict[str, str] = {}
+        self.preparacion_fisica_activa = False
 
         # --- Mente Colmena (Feature 4) ---
         # Estaciones Cinta/Carrusel declaradas en config; () = modo puerto clásico.
@@ -205,6 +210,8 @@ class Despachador:
                     continue
                 tarea.tick_inicio = self._tick_actual
                 self._tareas[robot.id] = tarea
+                eventos.append({"tipo": "pedido_asignado", "id_pedido": pedido.id_pedido,
+                                "robot_id": robot.id})
                 pedidos_disponibles.remove(pedido)
 
         # Paso 2: mapa de ocupación (ambas celdas de cada robot 1×2) para colisiones
@@ -355,10 +362,13 @@ class Despachador:
     # Creación de tareas
     # ------------------------------------------------------------------
 
-    def _caja_disponible(self, id_sku: str) -> Caja | None:
+    def _caja_disponible(self, id_sku: str, id_pedido: str | None = None) -> Caja | None:
         """Similar a grilla.primera_caja_accesible pero excluye celdas reservadas
         y columnas donde otro robot ya está trabajando (EXCAVANDO/RECUPERANDO)."""
         candidatas = self.grilla.buscar_por_sku(id_sku)
+        objetivo_id = self.cajas_objetivo_por_pedido.get(id_pedido) if id_pedido else None
+        if objetivo_id is not None:
+            candidatas = [c for c in candidatas if c.id_caja == objetivo_id]
         candidatas = [c for c in candidatas if (c.x, c.y, c.z) not in self._cajas_reservadas]
         # Excluir columnas donde otro robot ya está excavando/recuperando
         # (físicamente presente en la columna). Evita bloqueo mutuo.
@@ -383,7 +393,7 @@ class Despachador:
         tal que su PUNTA quede sobre la columna objetivo (para excavar/recuperar)
         y, al entregar, sobre la celda-estación. La estación debe ser compatible
         con la orientación fija del robot. Retorna None si no hay caja/estación."""
-        caja = self._caja_disponible(pedido.id_sku)
+        caja = self._caja_disponible(pedido.id_sku, pedido.id_pedido)
         if caja is None:
             return None
 
@@ -447,6 +457,8 @@ class Despachador:
             return self._fase_excavar(robot, tarea, acum)
         elif tarea.fase == "recuperar":
             return self._fase_recuperar(robot, tarea, acum)
+        elif tarea.fase == "recuperar_izado":
+            return self._fase_recuperar_izado(robot, tarea)
         elif tarea.fase == "mover_a_puerto":
             return self._fase_mover_a_puerto(robot, tarea, posiciones_actuales, acum)
         elif tarea.fase == "ir_a_recibir":
@@ -529,6 +541,15 @@ class Despachador:
             tarea.fase = "recuperar"
             return self._fase_recuperar(robot, tarea, acum)
 
+        if self.preparacion_fisica_activa:
+            motivo = (f"Excavación residual inesperada para {tarea.pedido.id_pedido}: "
+                      f"{len(encima)} cajas bloquean {tarea.caja_objetivo.id_caja}")
+            plan = getattr(self, "plan_olas", None)
+            if plan is not None:
+                plan.fallo = motivo
+            return robot, [], [], None, [{"tipo":"fallo_preparacion_fisica","motivo":motivo,
+                                          "id_pedido":tarea.pedido.id_pedido}]
+
         # Coordinación de escorts (anti-livelock @95%): la columna de descanso la
         # asigna el EscortPlanner (ver motor/escorts.py). Sin escort asignado este
         # ciclo, el robot ESPERA — esto serializa las excavaciones que compiten por
@@ -538,6 +559,7 @@ class Despachador:
             nuevo = _cambiar_estado(robot, RobotEstado.EXCAVANDO)
             return nuevo, [], [], None, [{
                 "tipo": "espera_escort", "robot_id": robot.id,
+                "id_pedido": tarea.pedido.id_pedido,
                 "columna": [tarea.caja_objetivo.x, tarea.caja_objetivo.y],
             }]
 
@@ -549,7 +571,8 @@ class Despachador:
         if destino_cell is None:
             # Sin celda segura disponible este tick: esperar (se replanificará).
             nuevo = _cambiar_estado(robot, RobotEstado.EXCAVANDO)
-            return nuevo, [], [], None, []
+            return nuevo, [], [], None, [{"tipo": "espera_espacio_excavacion",
+                                         "robot_id": robot.id, "id_pedido": tarea.pedido.id_pedido}]
 
         ax, ay, z_libre = destino_cell
         self.grilla.remover(caja_mover.x, caja_mover.y, caja_mover.z)
@@ -565,6 +588,7 @@ class Despachador:
         g_r = [(caja_mover.x, caja_mover.y, caja_mover.z)]
         nuevo = _cambiar_estado(robot, RobotEstado.EXCAVANDO)
         ev = {"tipo": "excavacion", "robot_id": robot.id,
+              "id_caja": caja_mover.id_caja, "id_pedido": tarea.pedido.id_pedido,
               "de": [caja_mover.x, caja_mover.y, caja_mover.z],
               "a": [ax, ay, z_libre]}
         return nuevo, g_d, g_r, None, [ev]
@@ -587,23 +611,43 @@ class Despachador:
         acum.cajas_recuperadas += 1
         acum.total_desplazamientos += 1
 
-        if tarea.estacion is None:
-            # NORTE: no entrega en estación. Queda cargado esperando el handoff a
-            # un robot E/O (lo gestiona _colaboracion_norte_prepass).
-            tarea.fase = "esperar_handoff"
-        else:
-            # E/O: ruta hacia el cuerpo de entrega de su estación compatible.
-            tarea.ruta_salida = _ruta_xy((robot.x, robot.y), tarea.puerto)
-            tarea.fase = "mover_a_puerto"
+        if not self.preparacion_fisica_activa:
+            if tarea.estacion is None:
+                tarea.fase = "esperar_handoff"
+            else:
+                tarea.ruta_salida = _ruta_xy((robot.x, robot.y), tarea.puerto)
+                tarea.fase = "mover_a_puerto"
+            nuevo = Robot(id=robot.id, x=robot.x, y=robot.y, z=robot.z,
+                          estado=RobotEstado.RECUPERANDO, carga_id=caja.id_caja,
+                          orientacion=robot.orientacion)
+            return nuevo, [], [(caja.x, caja.y, caja.z)], None, [{
+                "tipo":"caja_recuperada","robot_id":robot.id,"id_caja":caja.id_caja,
+                "id_sku":caja.id_sku,"x":caja.x,"y":caja.y,"z":caja.z}]
 
+        tarea.niveles_izados = self.grilla.gz - caja.z
+        tarea.fase = "recuperar_izado"
         nuevo = Robot(id=robot.id, x=robot.x, y=robot.y, z=robot.z,
                       estado=RobotEstado.RECUPERANDO, carga_id=caja.id_caja,
                       orientacion=robot.orientacion)
         g_r = [(caja.x, caja.y, caja.z)]
-        ev = {"tipo": "caja_recuperada", "robot_id": robot.id,
-              "id_caja": caja.id_caja, "id_sku": caja.id_sku,
-              "x": caja.x, "y": caja.y, "z": caja.z}
+        ev = {"tipo":"caja_recuperada","robot_id":robot.id,"id_caja":caja.id_caja,
+              "id_sku":caja.id_sku,"x":caja.x,"y":caja.y,"z":caja.z}
         return nuevo, [], g_r, None, [ev]
+
+    def _fase_recuperar_izado(self, robot: Robot, tarea: Tarea) -> _AvanceResult:
+        """Izado explícito por niveles antes de iniciar transporte al puerto."""
+        if tarea.niveles_izados > 0:
+            nivel = tarea.niveles_izados
+            tarea.niveles_izados -= 1
+            return robot, [], [], None, [{"tipo":"recuperacion_izado","fase":"recuperacion",
+                                          "robot_id":robot.id,"id_caja":robot.carga_id,
+                                          "nivel":nivel}]
+        if tarea.estacion is None:
+            tarea.fase = "esperar_handoff"
+        else:
+            tarea.ruta_salida = _ruta_xy((robot.x, robot.y), tarea.puerto)
+            tarea.fase = "mover_a_puerto"
+        return robot, [], [], None, []
 
     def _fase_mover_a_puerto(
         self, robot: Robot, tarea: Tarea, posiciones_actuales: dict[tuple[int, int], int], acum: "Acumuladores",

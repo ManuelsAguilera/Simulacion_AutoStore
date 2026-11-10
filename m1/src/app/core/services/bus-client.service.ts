@@ -5,6 +5,7 @@ import { GridConfig, DEFAULT_GRID_CONFIG } from '../models/grid-config.model';
 import { WsTickPayload, WsSystemErrorPayload, WsRobotState, WsGrillaCell, WsEstacion, WsConveyor, WsInterior } from '../models/state-bus-snapshot.model';
 import { SimApiService } from './sim-api.service';
 import { environment } from '../../../environments/environment';
+import { PlanExperimento } from '../models/experimentos.model';
 
 export interface KpiHistoryEntry {
   tick: number;
@@ -31,6 +32,7 @@ export interface KpisComputed {
 }
 
 export interface BusState {
+  experimento?: PlanExperimento|null;
   tick: number;
   running: boolean;
   velocidad: 1 | 2 | 5;
@@ -189,6 +191,7 @@ export class BusClientService implements OnDestroy {
       ...s,
       // Campos que SÍ vienen del bridge
       tick:      msg.tick,
+      experimento: msg.experimento ?? null,
       running:   msg.status === SimStatus.RUNNING,
       status:    msg.status as SimStatus,
       velocidad: (msg.velocidad as 1 | 2 | 5) ?? s.velocidad,

@@ -1,0 +1,250 @@
+{
+  "version": 1,
+  "semilla": 42,
+  "config": {
+    "grilla": {
+      "x": 6,
+      "y": 6,
+      "z": 2
+    },
+    "robots": 1,
+    "ocupacion_inicial": 16.666666666666668,
+    "anillo_transito": false,
+    "estaciones": [],
+    "robots_norte": 0,
+    "robots_este": 1,
+    "robots_oeste": 0
+  },
+  "inventario": [
+    {
+      "id_caja": "C001",
+      "id_sku": "SKU-2",
+      "cantidad": 1,
+      "x": 2,
+      "y": 2,
+      "z": 0
+    },
+    {
+      "id_caja": "C002",
+      "id_sku": "SKU-3",
+      "cantidad": 1,
+      "x": 3,
+      "y": 2,
+      "z": 0
+    },
+    {
+      "id_caja": "C003",
+      "id_sku": "SKU-3",
+      "cantidad": 1,
+      "x": 4,
+      "y": 2,
+      "z": 0
+    },
+    {
+      "id_caja": "C004",
+      "id_sku": "SKU-3",
+      "cantidad": 1,
+      "x": 5,
+      "y": 2,
+      "z": 0
+    },
+    {
+      "id_caja": "C005",
+      "id_sku": "SKU-1",
+      "cantidad": 1,
+      "x": 6,
+      "y": 2,
+      "z": 0
+    },
+    {
+      "id_caja": "C006",
+      "id_sku": "SKU-1",
+      "cantidad": 1,
+      "x": 7,
+      "y": 2,
+      "z": 0
+    },
+    {
+      "id_caja": "C007",
+      "id_sku": "SKU-3",
+      "cantidad": 1,
+      "x": 2,
+      "y": 3,
+      "z": 0
+    },
+    {
+      "id_caja": "C008",
+      "id_sku": "SKU-1",
+      "cantidad": 1,
+      "x": 3,
+      "y": 3,
+      "z": 0
+    },
+    {
+      "id_caja": "C009",
+      "id_sku": "SKU-2",
+      "cantidad": 1,
+      "x": 4,
+      "y": 3,
+      "z": 0
+    },
+    {
+      "id_caja": "C010",
+      "id_sku": "SKU-1",
+      "cantidad": 1,
+      "x": 5,
+      "y": 3,
+      "z": 0
+    },
+    {
+      "id_caja": "C011",
+      "id_sku": "SKU-2",
+      "cantidad": 1,
+      "x": 6,
+      "y": 3,
+      "z": 0
+    },
+    {
+      "id_caja": "C012",
+      "id_sku": "SKU-2",
+      "cantidad": 1,
+      "x": 7,
+      "y": 3,
+      "z": 0
+    }
+  ],
+  "solicitudes": [
+    {
+      "pedido": {
+        "id_pedido": "P001",
+        "id_sku": "SKU-1",
+        "cantidad": 1,
+        "destino": "Destino_sintetico"
+      },
+      "orden": 0,
+      "urgencia": "normal",
+      "plazo_tick": null
+    },
+    {
+      "pedido": {
+        "id_pedido": "P002",
+        "id_sku": "SKU-1",
+        "cantidad": 1,
+        "destino": "Destino_sintetico"
+      },
+      "orden": 1,
+      "urgencia": "normal",
+      "plazo_tick": null
+    },
+    {
+      "pedido": {
+        "id_pedido": "P003",
+        "id_sku": "SKU-3",
+        "cantidad": 1,
+        "destino": "Destino_sintetico"
+      },
+      "orden": 2,
+      "urgencia": "normal",
+      "plazo_tick": null
+    },
+    {
+      "pedido": {
+        "id_pedido": "P004",
+        "id_sku": "SKU-1",
+        "cantidad": 1,
+        "destino": "Destino_sintetico"
+      },
+      "orden": 3,
+      "urgencia": "urgente",
+      "plazo_tick": 100
+    },
+    {
+      "pedido": {
+        "id_pedido": "P005",
+        "id_sku": "SKU-2",
+        "cantidad": 1,
+        "destino": "Destino_sintetico"
+      },
+      "orden": 4,
+      "urgencia": "normal",
+      "plazo_tick": null
+    },
+    {
+      "pedido": {
+        "id_pedido": "P006",
+        "id_sku": "SKU-3",
+        "cantidad": 1,
+        "destino": "Destino_sintetico"
+      },
+      "orden": 5,
+      "urgencia": "normal",
+      "plazo_tick": null
+    },
+    {
+      "pedido": {
+        "id_pedido": "P007",
+        "id_sku": "SKU-1",
+        "cantidad": 1,
+        "destino": "Destino_sintetico"
+      },
+      "orden": 6,
+      "urgencia": "normal",
+      "plazo_tick": null
+    },
+    {
+      "pedido": {
+        "id_pedido": "P008",
+        "id_sku": "SKU-2",
+        "cantidad": 1,
+        "destino": "Destino_sintetico"
+      },
+      "orden": 7,
+      "urgencia": "urgente",
+      "plazo_tick": 100
+    },
+    {
+      "pedido": {
+        "id_pedido": "P009",
+        "id_sku": "SKU-3",
+        "cantidad": 1,
+        "destino": "Destino_sintetico"
+      },
+      "orden": 8,
+      "urgencia": "normal",
+      "plazo_tick": null
+    },
+    {
+      "pedido": {
+        "id_pedido": "P010",
+        "id_sku": "SKU-3",
+        "cantidad": 1,
+        "destino": "Destino_sintetico"
+      },
+      "orden": 9,
+      "urgencia": "urgente",
+      "plazo_tick": 100
+    },
+    {
+      "pedido": {
+        "id_pedido": "P011",
+        "id_sku": "SKU-2",
+        "cantidad": 1,
+        "destino": "Destino_sintetico"
+      },
+      "orden": 10,
+      "urgencia": "normal",
+      "plazo_tick": null
+    },
+    {
+      "pedido": {
+        "id_pedido": "P012",
+        "id_sku": "SKU-2",
+        "cantidad": 1,
+        "destino": "Destino_sintetico"
+      },
+      "orden": 11,
+      "urgencia": "normal",
+      "plazo_tick": null
+    }
+  ]
+}
